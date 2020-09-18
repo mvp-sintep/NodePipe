@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "ethernet-ip": "^1.2.5",
+    "load-json-file": "^6.2.0",
     "pg": "^8.3.3",
     "task-easy": "^1.0.1"
   }

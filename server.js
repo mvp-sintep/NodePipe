@@ -1,10 +1,20 @@
 'use strict';
 
+//const loadJsonFile = require('load-json-file');
+
+//loadJsonFile('/path/to/file.json').then(json => {
+  // `json` contains the parsed object
+//});
+//const config = require('./config.json');
+
 const { Controller, Tag, TagGroup } = require('ethernet-ip');
 const PLC = new Controller();
 
-PLC.subscribe(new Tag('result'));
-PLC.subscribe(new Tag('opc.online'));
+var theTag = [];
+
+PLC.subscribe(theTag[0] = new Tag('result'));
+PLC.subscribe(theTag[1] = new Tag('opc.online'));
+
 PLC.connect('192.168.255.22', 0).then(() => { PLC.scan_rate = 1000; PLC.scan(); });
 
 var x = [];
@@ -70,6 +80,7 @@ http.createServer(function (req, res) {
     res.write('<div id="div_002" class="block parameter"><span class="header">Счетчик связи</span>');
     res.write('<span class="body parameter"><table><tbody><tr><td class="parameter value">' + x[1].value + '</td><td class="parameter unit">ед.</td></tr></tbody></table></span>');
     res.write('<span class="footer parameter">&nbsp;</span></div>\r\n');
+    res.write('<div style="margin-top:100px;">\r\n\r\n\r\n' + theTag[0].timestamp + '</div>');
     res.write('</body>');
     res.end('</html>');
   }
@@ -78,3 +89,4 @@ http.createServer(function (req, res) {
     res.end('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>NOT FOUND</body></html>');
   }
 }).listen(port);
+
