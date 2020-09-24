@@ -1,2 +1,38 @@
 {
+  "connections":
+  [
+    {
+      "ip": "192.168.255.22",
+      "scan": 1000,
+      "subscribes":
+      [
+        "result",
+        "opc/online"
+      ]
+    }
+  ],
+  "datalog":
+  [
+    {
+      "name": "analog",
+      "type": "periodic",
+      "interval": "10s",
+      "tag":
+      [
+        "result",
+        "opc/online"
+      ]
+    },
+    {
+      "name": "discrete",
+      "change": "10%",
+      "maxrate": "5s",
+      "heartbear": "30s",
+      "tag":
+      [
+        "result",
+        "opc/online"
+      ]
+    }
+  ]
 }
