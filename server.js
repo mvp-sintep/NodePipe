@@ -1,82 +1,85 @@
-'use strict'; // Выставляем режим 'современный' для интрепритации скрипта
+'use strict'; // Р’С‹СЃС‚Р°РІР»СЏРµРј СЂРµР¶РёРј 'СЃРѕРІСЂРµРјРµРЅРЅС‹Р№' РґР»СЏ РёРЅС‚СЂРµРїСЂРёС‚Р°С†РёРё СЃРєСЂРёРїС‚Р°
 
-const Pool = require('pg').Pool; // Коннектор postgresql требует наличие модуля 'pg'
-const pool = new Pool({ host: 'localhost', user: 'user', database: 'api', port: 5432, password: 'W3.sintep.ru' }); // Создаем соединение с базой данных
-const { Controller, Tag, TagGroup } = require('ethernet-ip'); // Коннектор с контроллером требует наличия модуля 'ethernet-ip'
-const http = require('http'); // Коннектор для формирования страницы
+const Pool = require('pg').Pool; // РљРѕРЅРЅРµРєС‚РѕСЂ postgresql С‚СЂРµР±СѓРµС‚ РЅР°Р»РёС‡РёРµ РјРѕРґСѓР»СЏ 'pg'
+const pool = new Pool({ host: 'localhost', user: 'user', database: 'api', port: 5432, password: 'W3.sintep.ru' }); // РЎРѕР·РґР°РµРј СЃРѕРµРґРёРЅРµРЅРёРµ СЃ Р±Р°Р·РѕР№ РґР°РЅРЅС‹С…
+const { Controller, Tag, TagGroup } = require('ethernet-ip'); // РљРѕРЅРЅРµРєС‚РѕСЂ СЃ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРј С‚СЂРµР±СѓРµС‚ РЅР°Р»РёС‡РёСЏ РјРѕРґСѓР»СЏ 'ethernet-ip'
+const http = require('http'); // РљРѕРЅРЅРµРєС‚РѕСЂ РґР»СЏ С„РѕСЂРјРёСЂРѕРІР°РЅРёСЏ СЃС‚СЂР°РЅРёС†С‹
+const files = require('fs');
 
-var TAG = []; // Массив тегов
-var index = 0; // Индекс массива тегов
+var TAG = []; // РњР°СЃСЃРёРІ С‚РµРіРѕРІ
+var index = 0; // РРЅРґРµРєСЃ РјР°СЃСЃРёРІР° С‚РµРіРѕРІ
 
-const onTAGinit = function () { // Функция типизации данных БД по типу данных тегов
-  var type = 0; // Временная переменная
-  pool // Обращаемся к БД
-    .query("select type from public.tag where id = ($1);", [this.id]) // Пытаемся получить тип данных из БД
-    .then((result) => { // После того как пришел ответ
-      switch (this.type) { // Получаем код типа данных из тега
+const onTAGinit = function () { // Р¤СѓРЅРєС†РёСЏ С‚РёРїРёР·Р°С†РёРё РґР°РЅРЅС‹С… Р‘Р” РїРѕ С‚РёРїСѓ РґР°РЅРЅС‹С… С‚РµРіРѕРІ
+  var type = 0; // Р’СЂРµРјРµРЅРЅР°СЏ РїРµСЂРµРјРµРЅРЅР°СЏ
+  pool // РћР±СЂР°С‰Р°РµРјСЃСЏ Рє Р‘Р”
+    .query("select type from public.tag where id = ($1);", [this.id]) // РџС‹С‚Р°РµРјСЃСЏ РїРѕР»СѓС‡РёС‚СЊ С‚РёРї РґР°РЅРЅС‹С… РёР· Р‘Р”
+    .then((result) => { // РџРѕСЃР»Рµ С‚РѕРіРѕ РєР°Рє РїСЂРёС€РµР» РѕС‚РІРµС‚
+      switch (this.type) { // РџРѕР»СѓС‡Р°РµРј РєРѕРґ С‚РёРїР° РґР°РЅРЅС‹С… РёР· С‚РµРіР°
         case 'SINT': type = 1; break;
         case 'INT': type = 2; break;
         case 'DINT': type = 3; break;
         case 'REAL': type = 4; break;
         case 'BOOL': type = 5; break;
       }
-      if (result.rows[0].type === null) { // Если в ответе от БД нет такого тега
-        pool.query("update public.tag set type = ($2) where id = ($1);", [this.id, type], () => { }); // Добавляем тег с типом в БД
+      if (result.rows[0].type === null) { // Р•СЃР»Рё РІ РѕС‚РІРµС‚Рµ РѕС‚ Р‘Р” РЅРµС‚ С‚Р°РєРѕРіРѕ С‚РµРіР°
+        pool.query("update public.tag set type = ($2) where id = ($1);", [this.id, type], () => { }); // Р”РѕР±Р°РІР»СЏРµРј С‚РµРі СЃ С‚РёРїРѕРј РІ Р‘Р”
       }
-      else if (result.rows[0].type !== type) { // Если в ответе от БД есть тег, но его тип не совпадает
-        throw "USER FATAL ERROR: tag datatype [" + this.name + "] no equal the database existing"; // Вызываем критическую ошибку
+      else if (result.rows[0].type !== type) { // Р•СЃР»Рё РІ РѕС‚РІРµС‚Рµ РѕС‚ Р‘Р” РµСЃС‚СЊ С‚РµРі, РЅРѕ РµРіРѕ С‚РёРї РЅРµ СЃРѕРІРїР°РґР°РµС‚
+        throw "USER FATAL ERROR: tag datatype [" + this.name + "] no equal the database existing"; // Р’С‹Р·С‹РІР°РµРј РєСЂРёС‚РёС‡РµСЃРєСѓСЋ РѕС€РёР±РєСѓ
       }
-      this.insert = onTAGvalue; // Присваиваем значение ссылке на функцию обработчик новых значений тегов
+      this.insert = onTAGvalue; // РџСЂРёСЃРІР°РёРІР°РµРј Р·РЅР°С‡РµРЅРёРµ СЃСЃС‹Р»РєРµ РЅР° С„СѓРЅРєС†РёСЋ РѕР±СЂР°Р±РѕС‚С‡РёРє РЅРѕРІС‹С… Р·РЅР°С‡РµРЅРёР№ С‚РµРіРѕРІ
     });
-  this.init = undefined; // Сбрасываем ссылку на функцию обработчик иницианализации
+  this.init = undefined; // РЎР±СЂР°СЃС‹РІР°РµРј СЃСЃС‹Р»РєСѓ РЅР° С„СѓРЅРєС†РёСЋ РѕР±СЂР°Р±РѕС‚С‡РёРє РёРЅРёС†РёР°РЅР°Р»РёР·Р°С†РёРё
 };
 
-const onTAGvalue = function () { // Функция обработки новыйх значений тегов
-  var table; // Временная переменная
-  switch (this.type) { // Выбираем таблицу по типу тега
+const onTAGvalue = function () { // Р¤СѓРЅРєС†РёСЏ РѕР±СЂР°Р±РѕС‚РєРё РЅРѕРІС‹Р№С… Р·РЅР°С‡РµРЅРёР№ С‚РµРіРѕРІ
+  var table; // Р’СЂРµРјРµРЅРЅР°СЏ РїРµСЂРµРјРµРЅРЅР°СЏ
+  switch (this.type) { // Р’С‹Р±РёСЂР°РµРј С‚Р°Р±Р»РёС†Сѓ РїРѕ С‚РёРїСѓ С‚РµРіР°
     case 'SINT':
     case 'INT':
-    case 'DINT': table = 'i'; break; // Для всех целочисленных типов таблица i
-    case 'REAL': table = 'r'; break; // Для типа real - r
-    case 'BOOL': table = 'b'; break; // Для типа boolean - b
+    case 'DINT': table = 'i'; break; // Р”Р»СЏ РІСЃРµС… С†РµР»РѕС‡РёСЃР»РµРЅРЅС‹С… С‚РёРїРѕРІ С‚Р°Р±Р»РёС†Р° i
+    case 'REAL': table = 'r'; break; // Р”Р»СЏ С‚РёРїР° real - r
+    case 'BOOL': table = 'b'; break; // Р”Р»СЏ С‚РёРїР° boolean - b
   }
-  pool.query('insert into public.' + table + ' (dt,tag,value) values (now(),$1,$2)', [this.id, this.value], (error) => { // Записываем значение в БД
-    if (error) { console.log(error); } // Пишем ошибки
+  pool.query('insert into public.' + table + ' (dt,tag,value) values (now(),$1,$2)', [this.id, this.value], (error) => { // Р—Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ РІ Р‘Р”
+    if (error) { console.log(error); } // РџРёС€РµРј РѕС€РёР±РєРё
   });
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////// ЭТО СЕКЦИЯ НАСТРОЙКИ ///////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////// Р­РўРћ РЎР•РљР¦РРЇ РќРђРЎРўР РћР™РљР ///////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const PLC = [new Controller(), new Controller()]; // Создаем нужное количество контроллеров
+const PLC = [new Controller(), new Controller()]; // РЎРѕР·РґР°РµРј РЅСѓР¶РЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
 
-PLC[0].ip = '192.168.255.22'; // Указываем IP адрес контроллера
-PLC[0].scan_rate = 1800000; // Указываем время обновления тегов (для подавляющего числа применений указываем время обновления 1/2 минуты = 1800000 мсек, что равно 2880 записей в сутки)
+PLC[0].ip = '192.168.255.22'; // РЈРєР°Р·С‹РІР°РµРј IP Р°РґСЂРµСЃ РєРѕРЅС‚СЂРѕР»Р»РµСЂР°
+PLC[0].scan_rate = 30000; // РЈРєР°Р·С‹РІР°РµРј РІСЂРµРјСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ С‚РµРіРѕРІ (РґР»СЏ РїРѕРґР°РІР»СЏСЋС‰РµРіРѕ С‡РёСЃР»Р° РїСЂРёРјРµРЅРµРЅРёР№ СѓРєР°Р·С‹РІР°РµРј РІСЂРµРјСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ 1/2 РјРёРЅСѓС‚С‹ = 30000 РјСЃРµРє, С‡С‚Рѕ СЂР°РІРЅРѕ 2880 Р·Р°РїРёСЃРµР№ РІ СЃСѓС‚РєРё)
 
-[ // Указываем список тегов
-  'result'
+[ // РЈРєР°Р·С‹РІР°РµРј СЃРїРёСЃРѕРє С‚РµРіРѕРІ
+  ['result', "РЎР»СѓС‡Р°Р№РЅРѕРµ С‡РёСЃР»Рѕ" ]
 ]
-  .forEach(function (arg) { // Для каждого элемента массива будет вызван обработчик
-    PLC[0].subscribe(TAG[index] = new Tag(arg)); // Создаем новый тег и подписываемся на его изменения
-    TAG[index].init = onTAGinit; // Назначаем фугкцию обработчик инициализации тега
-    TAG[index++].plc = 0; // Инициализируем идентификатор контроллера в БД нулем
+  .forEach(function (arg) { // Р”Р»СЏ РєР°Р¶РґРѕРіРѕ СЌР»РµРјРµРЅС‚Р° РјР°СЃСЃРёРІР° Р±СѓРґРµС‚ РІС‹Р·РІР°РЅ РѕР±СЂР°Р±РѕС‚С‡РёРє
+    PLC[0].subscribe(TAG[index] = new Tag(arg[0])); // РЎРѕР·РґР°РµРј РЅРѕРІС‹Р№ С‚РµРі Рё РїРѕРґРїРёСЃС‹РІР°РµРјСЃСЏ РЅР° РµРіРѕ РёР·РјРµРЅРµРЅРёСЏ
+    TAG[index].init = onTAGinit; // РќР°Р·РЅР°С‡Р°РµРј С„СѓРіРєС†РёСЋ РѕР±СЂР°Р±РѕС‚С‡РёРє РёРЅРёС†РёР°Р»РёР·Р°С†РёРё С‚РµРіР°
+    TAG[index].user = arg[1]; // РРјСЏ РїРµСЂРµРјРµРЅРЅРѕР№ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+    TAG[index++].plc = 0; // РРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РєРѕРЅС‚СЂРѕР»Р»РµСЂР° РІ Р‘Р” РЅСѓР»РµРј
   });
 
-PLC[0].forEach(tag => { // Вызов обработчиков 
-  tag.on("Initialized", (tag, arg) => { if (tag.init !== undefined) tag.init(); }); // Инициализация тега
-  tag.on("Changed", (tag, arg) => { if (tag.insert !== undefined) tag.insert(); }); // Изменение значения тега
+PLC[0].forEach(tag => { // Р’С‹Р·РѕРІ РѕР±СЂР°Р±РѕС‚С‡РёРєРѕРІ 
+  tag.on("Initialized", (tag, arg) => { if (tag.init !== undefined) tag.init(); }); // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚РµРіР°
+  tag.on("Changed", (tag, arg) => { if (tag.insert !== undefined) tag.insert(); }); // РР·РјРµРЅРµРЅРёРµ Р·РЅР°С‡РµРЅРёСЏ С‚РµРіР°
 });
 
-PLC[1].ip = '192.168.255.22'; // Полностью аналогично для следующего контроллера
-PLC[1].scan_rate = 1800000;
+PLC[1].ip = '192.168.255.22'; // РџРѕР»РЅРѕСЃС‚СЊСЋ Р°РЅР°Р»РѕРіРёС‡РЅРѕ РґР»СЏ СЃР»РµРґСѓСЋС‰РµРіРѕ РєРѕРЅС‚СЂРѕР»Р»РµСЂР°
+PLC[1].scan_rate = 30000;
 
 [
-  'opc.online'
+  ['opc.online', Buffer.from("РџРёР»Р° СЃРІСЏР·Рё").toString('utf8') ]
 ]
   .forEach(function (arg) {
-    PLC[1].subscribe(TAG[index] = new Tag(arg));
+    PLC[1].subscribe(TAG[index] = new Tag(arg[0]));
     TAG[index].init = onTAGinit;
+    TAG[index].user = arg[1];
     TAG[index++].plc = 0;
   });
 
@@ -86,90 +89,90 @@ PLC[1].forEach(tag => {
 });
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////// НАСТРОЙКА ЗАКОНЧЕНА. ///////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////// РќРђРЎРўР РћР™РљРђ Р—РђРљРћРќР§Р•РќРђ. ///////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pool
-  .query("select to_regclass('public.plc_id_seq');") // Проверяем существование объекта автонумерации контроллеров в БД
+  .query("select to_regclass('public.plc_id_seq');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ РѕР±СЉРµРєС‚Р° Р°РІС‚РѕРЅСѓРјРµСЂР°С†РёРё РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ РІ Р‘Р”
   .then(result => {
-    if (result.rows[0].to_regclass == null) { // Если объект не существует
+    if (result.rows[0].to_regclass == null) { // Р•СЃР»Рё РѕР±СЉРµРєС‚ РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚
       pool
-        .query("create sequence public.plc_id_seq cycle increment 1 start 1 minvalue 1 maxvalue 2147483647 cache 1;") // Создаем объект
+        .query("create sequence public.plc_id_seq cycle increment 1 start 1 minvalue 1 maxvalue 2147483647 cache 1;") // РЎРѕР·РґР°РµРј РѕР±СЉРµРєС‚
         .then(() => {
           pool
-            .query('alter sequence public.plc_id_seq owner to "user";') // Изменяем владельца объекта
-            .then(() => { afterPLCseqAction(); }) // После завершения вызываем
+            .query('alter sequence public.plc_id_seq owner to "user";') // РР·РјРµРЅСЏРµРј РІР»Р°РґРµР»СЊС†Р° РѕР±СЉРµРєС‚Р°
+            .then(() => { afterPLCseqAction(); }) // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј
         });
     }
-    else { afterPLCseqAction(); } // Объект существует вызываем
+    else { afterPLCseqAction(); } // РћР±СЉРµРєС‚ СЃСѓС‰РµСЃС‚РІСѓРµС‚ РІС‹Р·С‹РІР°РµРј
   });
 
-const afterPLCseqAction = function () { // После проверки автонумерации контроллеров
+const afterPLCseqAction = function () { // РџРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё Р°РІС‚РѕРЅСѓРјРµСЂР°С†РёРё РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
   pool
-    .query("select to_regclass('public.plc');") // Проверяем существование таблицы контроллеров
+    .query("select to_regclass('public.plc');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ С‚Р°Р±Р»РёС†С‹ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
     .then(result => {
-      if (result.rows[0].to_regclass == null) { // Если объект не сущесвует
+      if (result.rows[0].to_regclass == null) { // Р•СЃР»Рё РѕР±СЉРµРєС‚ РЅРµ СЃСѓС‰РµСЃРІСѓРµС‚
         pool
           .query("create table public.plc ( id integer not null default nextval('plc_id_seq'::regclass)," +
-            "ip inet unique, constraint plc_pkey primary key(id) ) with ( oids = false ) tablespace pg_default;") // Создаем таблицу контроллеров
+            "ip inet unique, constraint plc_pkey primary key(id) ) with ( oids = false ) tablespace pg_default;") // РЎРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
           .then(() => {
             pool
-              .query('alter table public.plc owner to "user";') // Изменем владельца объекта
-              .then(() => { afterPLCtableAction(); }); // После завершения вызываем
+              .query('alter table public.plc owner to "user";') // РР·РјРµРЅРµРј РІР»Р°РґРµР»СЊС†Р° РѕР±СЉРµРєС‚Р°
+              .then(() => { afterPLCtableAction(); }); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј
           });
       }
-      else { afterPLCtableAction(); } // После завершения вызываем
+      else { afterPLCtableAction(); } // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј
     });
 }
 
-const afterPLCtableAction = function () { // После проверки существования таблицы контроллеров
+const afterPLCtableAction = function () { // РџРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёСЏ С‚Р°Р±Р»РёС†С‹ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
   var i = 0;
-  PLC.forEach(function (arg) { // Для всех контроллеров
+  PLC.forEach(function (arg) { // Р”Р»СЏ РІСЃРµС… РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
     pool
-      .query('select id from public.plc where ip = ($1);', [arg.ip]) // Проверяем наличие записи о контроллере в БД
+      .query('select id from public.plc where ip = ($1);', [arg.ip]) // РџСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ Р·Р°РїРёСЃРё Рѕ РєРѕРЅС‚СЂРѕР»Р»РµСЂРµ РІ Р‘Р”
       .then(result => {
         if (result.rowCount == 0) {
           pool
-            .query("insert into public.plc (ip) values ($1);", [arg.ip]) // Добавляем новый контроллер
+            .query("insert into public.plc (ip) values ($1);", [arg.ip]) // Р”РѕР±Р°РІР»СЏРµРј РЅРѕРІС‹Р№ РєРѕРЅС‚СЂРѕР»Р»РµСЂ
             .then(() => {
               pool
-                .query('select id from public.plc where ip = ($1);', [arg.ip]) // Получаем идентификатор контроллера в БД
+                .query('select id from public.plc where ip = ($1);', [arg.ip]) // РџРѕР»СѓС‡Р°РµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РєРѕРЅС‚СЂРѕР»Р»РµСЂР° РІ Р‘Р”
                 .then(result => {
-                  arg.id = result.rows[0].id; // Запоминаем идентификатор контроллера в БД для последующего использования
-                  if (++i == PLC.length) afterPLCidAction(); // После завершения вызываем
+                  arg.id = result.rows[0].id; // Р—Р°РїРѕРјРёРЅР°РµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РєРѕРЅС‚СЂРѕР»Р»РµСЂР° РІ Р‘Р” РґР»СЏ РїРѕСЃР»РµРґСѓСЋС‰РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
+                  if (++i == PLC.length) afterPLCidAction(); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј
                 });
             });
         }
         else {
-          arg.id = result.rows[0].id; // Запоминаем идентификатор контроллера в БД для последующего использования
-          if (++i == PLC.length) afterPLCidAction(); // После завершения вызываем
+          arg.id = result.rows[0].id; // Р—Р°РїРѕРјРёРЅР°РµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РєРѕРЅС‚СЂРѕР»Р»РµСЂР° РІ Р‘Р” РґР»СЏ РїРѕСЃР»РµРґСѓСЋС‰РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
+          if (++i == PLC.length) afterPLCidAction(); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј
         }
       });
   });
 }
 
-const afterPLCidAction = function () { // После проверки существования записей контроллеров
+const afterPLCidAction = function () { // РџРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёСЏ Р·Р°РїРёСЃРµР№ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
   pool
-    .query("select to_regclass('public.tag_id_seq');") // Проверяем существование объекта автонумерации тегов
+    .query("select to_regclass('public.tag_id_seq');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ РѕР±СЉРµРєС‚Р° Р°РІС‚РѕРЅСѓРјРµСЂР°С†РёРё С‚РµРіРѕРІ
     .then(result => {
       if (result.rows[0].to_regclass == null) {
         pool
-          .query("create sequence public.tag_id_seq cycle increment 1 start 1 minvalue 1 maxvalue 2147483647 cache 1;") // Создаем объект
+          .query("create sequence public.tag_id_seq cycle increment 1 start 1 minvalue 1 maxvalue 2147483647 cache 1;") // РЎРѕР·РґР°РµРј РѕР±СЉРµРєС‚
           .then(() => {
             pool
-              .query('alter sequence public.tag_id_seq owner to "user";') // Изменяем владельца
-              .then(() => { afterTAGseqAction(); }) // После завершения вызываем 
+              .query('alter sequence public.tag_id_seq owner to "user";') // РР·РјРµРЅСЏРµРј РІР»Р°РґРµР»СЊС†Р°
+              .then(() => { afterTAGseqAction(); }) // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј 
           });
       }
       else {
-        afterTAGseqAction(); // После завершения вызываем
+        afterTAGseqAction(); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј
       }
     });
 };
 
-const afterTAGseqAction = function () { // После проверки существования объекта автонумерации тегов
+const afterTAGseqAction = function () { // РџРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёСЏ РѕР±СЉРµРєС‚Р° Р°РІС‚РѕРЅСѓРјРµСЂР°С†РёРё С‚РµРіРѕРІ
   pool
-    .query("select to_regclass('public.tag');") // Проверяем существование таблицы тегов
+    .query("select to_regclass('public.tag');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ С‚Р°Р±Р»РёС†С‹ С‚РµРіРѕРІ
     .then(result => {
       if (result.rows[0].to_regclass == null) {
         pool
@@ -180,46 +183,46 @@ const afterTAGseqAction = function () { // После проверки существования объекта 
             "type integer default null, " +
             "constraint tag_pkey primary key(id), " +
             "constraint tag_plc_fkey foreign key (plc) references public.plc (id) match full on delete cascade on update cascade" +
-            ") with ( oids = false ) tablespace pg_default;") // Создаем таблицу
+            ") with ( oids = false ) tablespace pg_default;") // РЎРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ
           .then(() => {
             pool
-              .query('alter table public.tag owner to "user";') // Изменяем владельца
-              .then(() => { afterTAGtableAction(); }); // После завершения вызываем 
+              .query('alter table public.tag owner to "user";') // РР·РјРµРЅСЏРµРј РІР»Р°РґРµР»СЊС†Р°
+              .then(() => { afterTAGtableAction(); }); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј 
           });
       }
-      else { afterTAGtableAction(); } // После завершения вызываем 
+      else { afterTAGtableAction(); } // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј 
     });
 };
 
-const afterTAGtableAction = function () { // После проверки существования таблицы тегов
+const afterTAGtableAction = function () { // РџРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёСЏ С‚Р°Р±Р»РёС†С‹ С‚РµРіРѕРІ
   var i = 0;
-  TAG.forEach(function (arg) { // Для каждого тега
+  TAG.forEach(function (arg) { // Р”Р»СЏ РєР°Р¶РґРѕРіРѕ С‚РµРіР°
     pool
-      .query("select id, plc, name from public.tag where plc = ($1) and name = ($2) limit 1;", [PLC[arg.plc].id, arg.name]) // Пытаемся получить идентификатор тега в БД
+      .query("select id, plc, name from public.tag where plc = ($1) and name = ($2) limit 1;", [PLC[arg.plc].id, arg.name]) // РџС‹С‚Р°РµРјСЃСЏ РїРѕР»СѓС‡РёС‚СЊ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ С‚РµРіР° РІ Р‘Р”
       .then((result) => {
-        if (result.rowCount == 0) { // Если тега нет
+        if (result.rowCount == 0) { // Р•СЃР»Рё С‚РµРіР° РЅРµС‚
           pool
-            .query("insert into public.tag (plc,name) values ($1,$2);", [PLC[arg.plc].id, arg.name]) // Добавляем тег
+            .query("insert into public.tag (plc,name) values ($1,$2);", [PLC[arg.plc].id, arg.name]) // Р”РѕР±Р°РІР»СЏРµРј С‚РµРі
             .then(() => {
-              pool.query("select id from public.tag where plc = ($1) and name = ($2) limit 1;", [PLC[arg.plc].id, arg.name], (error, result) => { // Получаем идентификатор
-                arg.id = result.rows[0].id; // Сохраняем идентификатор для дальнейшего использования
+              pool.query("select id from public.tag where plc = ($1) and name = ($2) limit 1;", [PLC[arg.plc].id, arg.name], (error, result) => { // РџРѕР»СѓС‡Р°РµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ
+                arg.id = result.rows[0].id; // РЎРѕС…СЂР°РЅСЏРµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РґР»СЏ РґР°Р»СЊРЅРµР№С€РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
               });
-              if (++i == TAG.length) afterTAGaddAction(); // После завершения вызываем 
+              if (++i == TAG.length) afterTAGaddAction(); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј 
             });
         }
-        else { // Тег найден
-          arg.id = result.rows[0].id; // Сохраняем идентификатор для дальнейшего использования
-          if (++i == TAG.length) afterTAGaddAction(); // После завершения вызываем 
+        else { // РўРµРі РЅР°Р№РґРµРЅ
+          arg.id = result.rows[0].id; // РЎРѕС…СЂР°РЅСЏРµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РґР»СЏ РґР°Р»СЊРЅРµР№С€РµРіРѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ
+          if (++i == TAG.length) afterTAGaddAction(); // РџРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІС‹Р·С‹РІР°РµРј 
         }
       });
   });
 };
 
-const afterTAGaddAction = function () { // После проверки наличия тегов в БД
+const afterTAGaddAction = function () { // РџРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё РЅР°Р»РёС‡РёСЏ С‚РµРіРѕРІ РІ Р‘Р”
   pool
-    .query("select to_regclass('public.i');") // Проверяем существование таблицы значений целочисленных тегов
+    .query("select to_regclass('public.i');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ С‚Р°Р±Р»РёС†С‹ Р·РЅР°С‡РµРЅРёР№ С†РµР»РѕС‡РёСЃР»РµРЅРЅС‹С… С‚РµРіРѕРІ
     .then(result => {
-      if (result.rows[0].to_regclass == null) { // Если не сущесвует
+      if (result.rows[0].to_regclass == null) { // Р•СЃР»Рё РЅРµ СЃСѓС‰РµСЃРІСѓРµС‚
         pool
           .query(
             "create table public.i ( " +
@@ -227,16 +230,16 @@ const afterTAGaddAction = function () { // После проверки наличия тегов в БД
             "dt timestamp without time zone not null," +
             "value integer not null," +
             "constraint tag_i_fkey foreign key (tag) references public.tag (id) match full on delete cascade on update cascade" +
-            ") with ( oids = false ) tablespace pg_default;") // Создаем таблицу
+            ") with ( oids = false ) tablespace pg_default;") // РЎРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ
           .then(() => {
-            pool.query('alter table public.i owner to "user";'); // Изменяем владельца
+            pool.query('alter table public.i owner to "user";'); // РР·РјРµРЅСЏРµРј РІР»Р°РґРµР»СЊС†Р°
           });
       }
     });
   pool
-    .query("select to_regclass('public.r');") // Проверяем существование таблицы значений тегов с плавающей точкой
+    .query("select to_regclass('public.r');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ С‚Р°Р±Р»РёС†С‹ Р·РЅР°С‡РµРЅРёР№ С‚РµРіРѕРІ СЃ РїР»Р°РІР°СЋС‰РµР№ С‚РѕС‡РєРѕР№
     .then(result => {
-      if (result.rows[0].to_regclass == null) { // Если не сущесвует
+      if (result.rows[0].to_regclass == null) { // Р•СЃР»Рё РЅРµ СЃСѓС‰РµСЃРІСѓРµС‚
         pool
           .query(
             "create table public.r ( " +
@@ -244,16 +247,16 @@ const afterTAGaddAction = function () { // После проверки наличия тегов в БД
             "dt timestamp without time zone not null," +
             "value real not null," +
             "constraint tag_r_fkey foreign key (tag) references public.tag (id) match full on delete cascade on update cascade" +
-            ") with ( oids = false ) tablespace pg_default;") // Создаем таблицу
+            ") with ( oids = false ) tablespace pg_default;") // РЎРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ
           .then(() => {
-            pool.query('alter table public.r owner to "user";'); // Изменяем владельца
+            pool.query('alter table public.r owner to "user";'); // РР·РјРµРЅСЏРµРј РІР»Р°РґРµР»СЊС†Р°
           });
       }
     });
   pool
-    .query("select to_regclass('public.b');") // Проверяем существование таблицы значений тегов да/нет
+    .query("select to_regclass('public.b');") // РџСЂРѕРІРµСЂСЏРµРј СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёРµ С‚Р°Р±Р»РёС†С‹ Р·РЅР°С‡РµРЅРёР№ С‚РµРіРѕРІ РґР°/РЅРµС‚
     .then(result => {
-      if (result.rows[0].to_regclass == null) { // Если не сущесвует
+      if (result.rows[0].to_regclass == null) { // Р•СЃР»Рё РЅРµ СЃСѓС‰РµСЃРІСѓРµС‚
         pool
           .query(
             "create table public.b ( " +
@@ -261,23 +264,26 @@ const afterTAGaddAction = function () { // После проверки наличия тегов в БД
             "dt timestamp without time zone not null," +
             "value boolean not null," +
             "constraint tag_b_fkey foreign key (tag) references public.tag (id) match full on delete cascade on update cascade" +
-            ") with ( oids = false ) tablespace pg_default;") // Создаем таблицу
+            ") with ( oids = false ) tablespace pg_default;") // РЎРѕР·РґР°РµРј С‚Р°Р±Р»РёС†Сѓ
           .then(() => {
-            pool.query('alter table public.b owner to "user";'); // Изменяем владельца
+            pool.query('alter table public.b owner to "user";'); // РР·РјРµРЅСЏРµРј РІР»Р°РґРµР»СЊС†Р°
           });
       }
     });
 
-  PLC.forEach(arg => { // Для всех контроллеров запускаем процесс сканирования тегов
+  PLC.forEach(arg => { // Р”Р»СЏ РІСЃРµС… РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ Р·Р°РїСѓСЃРєР°РµРј РїСЂРѕС†РµСЃСЃ СЃРєР°РЅРёСЂРѕРІР°РЅРёСЏ С‚РµРіРѕРІ
     arg.connect(arg.ip, 0).then(() => { arg.scan(); });
   });
 
 };
 
-const server = http.createServer((req, res) => { // Функция http сервера
-  if (req.url == '/') { // Если запрошен корневой элемент
-    res.writeHead(200, { 'Content-Type': 'text/html' }); // Ответ кодом 200 и далее содержимое
-    res.write( 
+const server = http.createServer((request, response) => { // Р¤СѓРЅРєС†РёСЏ http СЃРµСЂРІРµСЂР°
+
+  var url = new URL(request.url, "http://127.0.0.1:1337/");
+
+  if (url.pathname == '/') { // Р•СЃР»Рё Р·Р°РїСЂРѕС€РµРЅ РєРѕСЂРЅРµРІРѕР№ СЌР»РµРјРµРЅС‚
+    response.writeHead(200, { 'Content-Type': 'text/html' }); // РћС‚РІРµС‚ РєРѕРґРѕРј 200 Рё РґР°Р»РµРµ СЃРѕРґРµСЂР¶РёРјРѕРµ
+    response.write(
       '<!DOCTYPE html><html>' +
       '<head>' +
       '<meta charset="utf-8">' +
@@ -294,30 +300,30 @@ const server = http.createServer((req, res) => { // Функция http сервера
       'table tr:nth-child(odd) {background-color:white;}' +
       'table td {padding-left:5px;padding-right:5px;}' +
       '</style>' +
-      '</head>'); // Записываем заголовок и таблицу визуальных стилей
-    res.write('<body>'); // Начало тела
-    res.write(
+      '</head>'); // Р—Р°РїРёСЃС‹РІР°РµРј Р·Р°РіРѕР»РѕРІРѕРє Рё С‚Р°Р±Р»РёС†Сѓ РІРёР·СѓР°Р»СЊРЅС‹С… СЃС‚РёР»РµР№
+    response.write('<body>'); // РќР°С‡Р°Р»Рѕ С‚РµР»Р°
+    response.write(
       '<table class="plcs">' +
       '<caption>PLC list</caption>' +
-      '<thead><tr><th>Name</th><th>S/N</th><th>Version</th><th>Date</th><th>Scanning</th></tr></thead>'); // Заголовок таблицы контроллеров
-    PLC.forEach(plc => { // Для каждого контроллера
-      res.write(
+      '<thead><tr><th>Name</th><th>S/N</th><th>Version</th><th>Date</th><th>Scanning</th></tr></thead>'); // Р—Р°РіРѕР»РѕРІРѕРє С‚Р°Р±Р»РёС†С‹ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
+    PLC.forEach(plc => { // Р”Р»СЏ РєР°Р¶РґРѕРіРѕ РєРѕРЅС‚СЂРѕР»Р»РµСЂР°
+      response.write(
         '<tr>' +
         '<td>' + plc.properties.name + '</td>' +
         '<td>' + plc.properties.serial_number + '</td>' +
         '<td>' + plc.properties.version + '</td>' +
         '<td>' + plc.properties.time + '</td>' +
         '<td>' + plc.scanning + '</td>' +
-        '</tr>'); // Строка данных
+        '</tr>'); // РЎС‚СЂРѕРєР° РґР°РЅРЅС‹С…
     });
-    res.write('</table>'); // Закончили с таблицей контроллеров
+    response.write('</table>'); // Р—Р°РєРѕРЅС‡РёР»Рё СЃ С‚Р°Р±Р»РёС†РµР№ РєРѕРЅС‚СЂРѕР»Р»РµСЂРѕРІ
 
-    res.write(
+    response.write(
       '<table class="tags">' +
       '<caption>PLC tag list</caption>' +
-      '<thead><tr><th>Name</th><th>Bit index</th><th>Type</th><th>Value</th><th>Time stamp</th><th>Error</th></tr></thead>'); // Заголовок таблицы тегов
-    TAG.forEach(tag => { // Для каждого тега
-      res.write(
+      '<thead><tr><th>Name</th><th>Bit index</th><th>Type</th><th>Value</th><th>Time stamp</th><th>Error</th></tr></thead>'); // Р—Р°РіРѕР»РѕРІРѕРє С‚Р°Р±Р»РёС†С‹ С‚РµРіРѕРІ
+    TAG.forEach(tag => { // Р”Р»СЏ РєР°Р¶РґРѕРіРѕ С‚РµРіР°
+      response.write(
         '<tr>' +
         '<td>' + tag.name + '</td>' +
         '<td>' + tag.bitIndex + '</td>' +
@@ -325,28 +331,141 @@ const server = http.createServer((req, res) => { // Функция http сервера
         '<td>' + tag.value + '</td>' +
         '<td>' + tag.timestamp + '</td>' +
         '<td>' + tag.error + '</td>' +
-        '</tr>'); // Строка данных
+        '</tr>'); // РЎС‚СЂРѕРєР° РґР°РЅРЅС‹С…
     });
-    res.write('</table>'); // Закончили с таблицей тегов
+    response.write('</table>'); // Р—Р°РєРѕРЅС‡РёР»Рё СЃ С‚Р°Р±Р»РёС†РµР№ С‚РµРіРѕРІ
 
-    res.write('</body>'); // Закончили с телом
-    res.end('</html>'); // Закончили с документом
+    response.write('</body>'); // Р—Р°РєРѕРЅС‡РёР»Рё СЃ С‚РµР»РѕРј
+    response.end('</html>'); // Р—Р°РєРѕРЅС‡РёР»Рё СЃ РґРѕРєСѓРјРµРЅС‚РѕРј
   }
-  else { // Запрощен не известный ресурс
-    res.writeHead(404, { 'Content-Type': 'text/html' }); // Отвечаем заголовком с кодом 404
-    res.end('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>[' + req.url + '] not found</body></html>'); // И телом пустого документа
+  else if (url.pathname == '/plc') {
+    pool
+      .query({
+        text: "select id, ip from public.plc order by ip;",
+        rowMode: 'array'
+      }, (error, result) => {
+        if (error) { throw error }
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.write('ID,IP');
+        result.rows.forEach(arg => {
+          response.write('\r\n' + JSON.stringify(arg[0]).toString() + ',' + JSON.stringify(arg[1]));
+        });
+        response.end('');
+      })
+  }
+  else if (url.pathname == '/tag') {
+    if (url.searchParams.get('id') != undefined) {
+      pool
+        .query({
+          text: "select tag.id, tag.name, plc.ip from public.tag tag, public.plc plc where tag.id = " + url.searchParams.get('id') + ";",
+          rowMode: 'array'
+        }, (error, result) => {
+          if (error) { throw error }
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.write('ID,Name,IP');
+          result.rows.forEach(arg => {
+            response.write('\r\n' + JSON.stringify(arg[0]).toString() + ',' + JSON.stringify(arg[1]) + ',' + JSON.stringify(arg[2]));
+          });
+          response.end('');
+        })
+    }
+    else {
+      pool
+        .query({
+          text: "select tag.id, tag.name, plc.ip from public.tag tag, public.plc plc;",
+          rowMode: 'array'
+        }, (error, result) => {
+          if (error) { throw error }
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.write('ID,Name,IP');
+          result.rows.forEach(arg => {
+            response.write('\r\n' + JSON.stringify(arg[0]).toString() + ',' + JSON.stringify(arg[1]) + ',' + JSON.stringify(arg[2]));
+          });
+          response.end('');
+        })
+    }
+  }
+  else if (url.pathname == '/data') {
+    if (url.searchParams.get('id') != undefined) {
+      TAG.find((arg) => {
+        if (arg.id == url.searchParams.get('id')) {
+          var tmp, val, cnt; // Р’СЂРµРјРµРЅРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ
+          if (url.searchParams.get('count') === null || url.searchParams.get('count') < 1000) cnt = 5000; else cnt = url.searchParams.get('count');
+          switch (arg.type) { // Р’С‹Р±РёСЂР°РµРј Р·РЅР°С‡РµРЅРёРµ Рё С‚Р°Р±Р»РёС†Сѓ РїРѕ С‚РёРїСѓ С‚РµРіР°
+            case 'SINT':
+            case 'INT':
+            case 'DINT': val = "value"; tmp = "i"; break; // Р”Р»СЏ РІСЃРµС… С†РµР»РѕС‡РёСЃР»РµРЅРЅС‹С… С‚РёРїРѕРІ С‚Р°Р±Р»РёС†Р° i
+            case 'REAL': val = "round( value * 100 ) / 100"; tmp = "r"; break; // Р”Р»СЏ С‚РёРїР° real - r
+            case 'BOOL': val = "value"; tmp = "b"; break; // Р”Р»СЏ С‚РёРїР° boolean - b
+          }
+          pool
+            .query("select count(*) from public." + tmp + ";")
+            .then((result) => {
+              if ((result.rows[0].count - cnt) < 0) { cnt = result.rows[0].count; }
+              pool.query({ text: "select dt, " + val + " from public." + tmp + " order by dt limit " + cnt + " offset ((select count (*) from public." + tmp + " ) - " + cnt + ");", rowMode: 'array' }, (error, results) => {
+                if (error) { throw error }
+                response.writeHead(200, { 'Content-Type': 'application/json;' });
+                response.write('Р”Р°С‚Р° Рё РІСЂРµРјСЏ,' + arg.user);
+                results.rows.forEach(arg => {
+                  response.write('\r\n' + JSON.stringify(arg[0]).toString() + ',' + JSON.stringify(arg[1]));
+                });
+                response.end('');
+              })
+            });
+        }
+      });
+    }
+  }
+  else if (url.pathname == '/plotly-latest.min.js') {
+    let content = files.readFileSync("plotly-latest.min.js", "utf8");
+    response.writeHead(200, { 'Content-Type': 'text/javascript' });
+    response.end(content);
+  }
+  else if (url.pathname == '/style.css') {
+    let content = files.readFileSync("style.css", "utf8");
+    response.writeHead(200, { 'Content-Type': 'text/css' });
+    response.end(content);
+  }
+  else if (url.pathname == '/script.js') {
+    let content = files.readFileSync("script.js", "utf8");
+    response.writeHead(200, { 'Content-Type': 'text/javascript' });
+    response.end(content);
+  }
+  else if (url.pathname == '/graph') {
+    response.writeHead(200, { 'Content-Type': 'text/html' }); // РћС‚РІРµС‚ РєРѕРґРѕРј 200 Рё РґР°Р»РµРµ СЃРѕРґРµСЂР¶РёРјРѕРµ
+    response.write(
+      '<!DOCTYPE html><html>' +
+      '<head>' +
+      '<meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>РџРѕСЃС‚СЂРѕРµРЅРёРµ РіСЂР°С„РёРєР°</title>' +
+      '<link rel="stylesheet" href="style.css" />' +
+      '<script src="/plotly-latest.min.js"></script>' +
+      '<script src="/script.js"></script>' +
+      '</head>' +
+      '<body onload="try { application.run(); } catch( error ) { alert( error.description ); }">' +
+      '<div id="chart_001" class="block chart">' +
+      '<span class="header">РЎС‡РµС‚С‡РёРє СЃРІСЏР·Рё</span>' +
+      '<div id="chart_001_body" class="body"></div>' +
+      '</div>' +
+      '</body>');
+    response.end('</html>');
+  }
+  else { // Р—Р°РїСЂРѕС‰РµРЅ РЅРµРёР·РІРµСЃС‚РЅС‹Р№ СЂРµСЃСѓСЂСЃ
+    response.writeHead(404, { 'Content-Type': 'text/html' }); // РћС‚РІРµС‡Р°РµРј Р·Р°РіРѕР»РѕРІРєРѕРј СЃ РєРѕРґРѕРј 404
+    response.end('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>[' + request.url + '] not found</body></html>'); // Р С‚РµР»РѕРј РїСѓСЃС‚РѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р°
   }
 });
 
-server.listen(process.env.PORT || 1337); // Запускаем WEB сервер
+server.listen(process.env.PORT || 1337); // Р—Р°РїСѓСЃРєР°РµРј WEB СЃРµСЂРІРµСЂ
 
-const dbStaff = function () { // Функция периодической очистки БД
-  ["b", "i", "r"] // Список таблиц
-    .forEach(function (arg) { // Для каждой таблицы
+const dbStaff = function () { // Р¤СѓРЅРєС†РёСЏ РїРµСЂРёРѕРґРёС‡РµСЃРєРѕР№ РѕС‡РёСЃС‚РєРё Р‘Р”
+  ["b", "i", "r"] // РЎРїРёСЃРѕРє С‚Р°Р±Р»РёС†
+    .forEach(function (arg) { // Р”Р»СЏ РєР°Р¶РґРѕР№ С‚Р°Р±Р»РёС†С‹
       pool
-        .query("delete from public." + arg + " where dt < (now() - interval '2 year');") // Запускаем процесс маркирования записей старше двух лет
-        .then(() => { pool.query("vacuum analyze public." + arg + ";"); }); // После пометки запускаем процесс удаления помеченных записей
+        .query("delete from public." + arg + " where dt < (now() - interval '2 year');") // Р—Р°РїСѓСЃРєР°РµРј РїСЂРѕС†РµСЃСЃ РјР°СЂРєРёСЂРѕРІР°РЅРёСЏ Р·Р°РїРёСЃРµР№ СЃС‚Р°СЂС€Рµ РґРІСѓС… Р»РµС‚
+        .then(() => { pool.query("vacuum analyze public." + arg + ";"); }); // РџРѕСЃР»Рµ РїРѕРјРµС‚РєРё Р·Р°РїСѓСЃРєР°РµРј РїСЂРѕС†РµСЃСЃ СѓРґР°Р»РµРЅРёСЏ РїРѕРјРµС‡РµРЅРЅС‹С… Р·Р°РїРёСЃРµР№
     });
 };
 
-setInterval(dbStaff, 86400000); // Выполняем обслуживание периодически - раз в сутки
+setInterval(dbStaff, 86400000); // Р’С‹РїРѕР»РЅСЏРµРј РѕР±СЃР»СѓР¶РёРІР°РЅРёРµ РїРµСЂРёРѕРґРёС‡РµСЃРєРё - СЂР°Р· РІ СЃСѓС‚РєРё

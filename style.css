@@ -1,0 +1,66 @@
+body {cursor:default;padding:0;margin:0;}
+body, tbody, button {font-family:Consolas;font-size:11px;}
+table {table-layout:fixed;border-collapse:collapse;}
+td { padding: 0; margin: 0; }
+body { margin-top: 20px; }
+.block {
+position:absolute;
+}
+.block.parameter {
+width:120px;
+height:60px;
+}
+.block.parameter#div_001 {
+top:20px;
+left:5px;
+}
+.block.parameter#div_002 {
+top:20px;
+left:136px;
+}
+.block.parameter#div_003 {
+top:20px;
+left:267px;
+}
+.parameter .header {
+font-size:11px;
+}
+.parameter .body {
+width:117px;
+height: 31px;
+display: block;
+border-radius:3px;
+border-style:solid;
+border-color:#666666;
+padding: 2px;
+}
+.parameter .value {
+font-size:24px;
+width:78px;
+text-align:right;
+padding-right:3px;
+}
+.parameter .unit {
+font-size:10px;
+width:38px;
+padding-top:7px;
+padding-left:2px;
+}
+.parameter .footer {
+font-size:4px;
+}
+.block.chart#chart_001 {
+top:80px;
+left:5px;
+width:388px;
+height:328px;
+}
+.chart .header {
+font-size:11px;
+}
+.chart .body {
+padding: 10px;
+border-radius:3px;
+border-style:solid;
+border-color:#666666;
+}
