@@ -6,6 +6,44 @@ const { Controller, Tag, TagGroup } = require('ethernet-ip'); // Коннект�
 const http = require('http'); // Коннектор для формирования страницы
 const files = require('fs');
 
+const config = {
+  count: 5000
+};
+
+const layout = {
+  showlegend: false,
+  autosize: false,
+  height: 300,
+  width: 356,
+  margin: { l: 30, r: 12, b: 5, t: 0, pad: 0 },
+  xaxis: {
+    autorange: false,
+    rangeselector: {
+      buttons: [
+        { count: 1, label: 'М', step: 'minute', stepmode: 'backward' },
+        { count: 15, label: '15М', step: 'minute', stepmode: 'backward' },
+        { count: 1, label: 'H', step: 'hour', stepmode: 'backward' },
+        { count: 6, label: '6H', step: 'hour', stepmode: 'backward' },
+        { count: 1, label: 'D', step: 'day', stepmode: 'backward' },
+        { count: 10, label: '10D', step: 'day', stepmode: 'backward' },
+        { count: 30, label: '30D', step: 'day', stepmode: 'backward' },
+        { count: 1, label: 'Y', step: 'year', stepmode: 'backward' },
+        { step: 'all' }
+      ]
+    },
+    rangeslider: {},
+    type: 'date',
+    tickfont: { family: 'Consolas', size: 4, color: 'white' },
+    tickformat: "%d-%m-%y %H:%M:%S",
+  },
+  yaxis: {
+    autorange: false,
+    range: [-10,10],
+    type: 'linear',
+    tickfont: { family: 'Consolas', size: 10, color: 'black' },
+  }
+};
+
 var TAG = []; // Массив тегов
 var index = 0; // Индекс массива тегов
 
@@ -56,12 +94,13 @@ PLC[0].ip = '192.168.255.22'; // Указываем IP адрес контрол
 PLC[0].scan_rate = 30000; // Указываем время обновления тегов (для подавляющего числа применений указываем время обновления 1/2 минуты = 30000 мсек, что равно 2880 записей в сутки)
 
 [ // Указываем список тегов
-  ['result', "Случайное число" ]
+  ['result', "Случайное число", [ -10, 10 ] ]
 ]
   .forEach(function (arg) { // Для каждого элемента массива будет вызван обработчик
     PLC[0].subscribe(TAG[index] = new Tag(arg[0])); // Создаем новый тег и подписываемся на его изменения
     TAG[index].init = onTAGinit; // Назначаем фугкцию обработчик инициализации тега
     TAG[index].user = arg[1]; // Имя переменной для пользователя
+    TAG[index].range = arg[2];
     TAG[index++].plc = 0; // Инициализируем идентификатор контроллера в БД нулем
   });
 
@@ -74,12 +113,13 @@ PLC[1].ip = '192.168.255.22'; // Полностью аналогично для 
 PLC[1].scan_rate = 30000;
 
 [
-  ['opc.online', Buffer.from("Пила связи").toString('utf8') ]
+  ['opc.online', "Пила связи", [ 0, 32768 ] ]
 ]
   .forEach(function (arg) {
     PLC[1].subscribe(TAG[index] = new Tag(arg[0]));
     TAG[index].init = onTAGinit;
     TAG[index].user = arg[1];
+    TAG[index].range = arg[2];
     TAG[index++].plc = 0;
   });
 
@@ -320,8 +360,8 @@ const server = http.createServer((request, response) => { // Функция http
 
     response.write(
       '<table class="tags">' +
-      '<caption>PLC tag list</caption>' +
-      '<thead><tr><th>Name</th><th>Bit index</th><th>Type</th><th>Value</th><th>Time stamp</th><th>Error</th></tr></thead>'); // Заголовок таблицы тегов
+      '<caption><a href="./tag">PLC tag list</a></caption>' +
+      '<thead><tr><th>Name</th><th>Bit index</th><th>Type</th><th>Value</th><th>Time stamp</th><th>Error</th><th>Data ID</th><th>User href</th></tr></thead>'); // Заголовок таблицы тегов
     TAG.forEach(tag => { // Для каждого тега
       response.write(
         '<tr>' +
@@ -331,27 +371,31 @@ const server = http.createServer((request, response) => { // Функция http
         '<td>' + tag.value + '</td>' +
         '<td>' + tag.timestamp + '</td>' +
         '<td>' + tag.error + '</td>' +
+        '<td><a href="./data?id=' + tag.id + '">' + tag.id + '</a></td>' +
+        '<td><a href="./graph?id=' + tag.id + '">' + tag.user + '</a></td>' +
         '</tr>'); // Строка данных
     });
     response.write('</table>'); // Закончили с таблицей тегов
 
+    response.write(
+      '<table class="tags">' +
+      '<caption>Configuration</caption>' +
+      '<thead><tr><th>Name</th><th>Value</th><th>Command</th></tr></thead>');
+
+    Object.keys(config).forEach(arg => {
+      response.write(
+        '<tr>' +
+        '<td>' + arg + '</td>' +
+        '<td>' + config[arg] + '</td>' +
+        '<td>' + '</td>' +
+        '</tr>'
+      );
+    });
+
+    response.write('</table>'); // Закончили с таблицей тегов
+
     response.write('</body>'); // Закончили с телом
     response.end('</html>'); // Закончили с документом
-  }
-  else if (url.pathname == '/plc') {
-    pool
-      .query({
-        text: "select id, ip from public.plc order by ip;",
-        rowMode: 'array'
-      }, (error, result) => {
-        if (error) { throw error }
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.write('ID,IP');
-        result.rows.forEach(arg => {
-          response.write('\r\n' + JSON.stringify(arg[0]).toString() + ',' + JSON.stringify(arg[1]));
-        });
-        response.end('');
-      })
   }
   else if (url.pathname == '/tag') {
     if (url.searchParams.get('id') != undefined) {
@@ -431,25 +475,49 @@ const server = http.createServer((request, response) => { // Функция http
     response.writeHead(200, { 'Content-Type': 'text/javascript' });
     response.end(content);
   }
-  else if (url.pathname == '/graph') {
-    response.writeHead(200, { 'Content-Type': 'text/html' }); // Ответ кодом 200 и далее содержимое
-    response.write(
-      '<!DOCTYPE html><html>' +
-      '<head>' +
-      '<meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-      '<title>Построение графика</title>' +
-      '<link rel="stylesheet" href="style.css" />' +
-      '<script src="/plotly-latest.min.js"></script>' +
-      '<script src="/script.js"></script>' +
-      '</head>' +
-      '<body onload="try { application.run(); } catch( error ) { alert( error.description ); }">' +
-      '<div id="chart_001" class="block chart">' +
-      '<span class="header">Счетчик связи</span>' +
-      '<div id="chart_001_body" class="body"></div>' +
-      '</div>' +
-      '</body>');
-    response.end('</html>');
+  else if (url.pathname == '/graph' && url.searchParams.get('id') != undefined) {
+    TAG.find((arg) => {
+      if (arg.id == url.searchParams.get('id')) {
+        response.writeHead(200, { 'Content-Type': 'text/html' });
+        response.write(
+          '<!DOCTYPE html><html>\r\n' +
+          '<head>\r\n' +
+          '<meta charset="utf-8">\r\n' +
+          '<meta name="viewport" content="width=device-width, initial-scale=1.0">\r\n' +
+          '<title>Построение графика</title>\r\n' +
+          '<link rel="stylesheet" href="style.css" />\r\n' +
+          '<script src="/plotly-latest.min.js"></script>\r\n' +
+          '<script>\r\n' +
+          'window["layout"] = ' + JSON.stringify(layout).toString() + ';\r\n' +
+          'Plotly.d3.csv(\r\n' +
+          '"/data?id=' + arg.id + '",\r\n' +
+          'function (err, rows) {\r\n' +
+          'function unpack(rows, key) { return rows.map(function (row) { return row[key]; }); }\r\n' +
+          'var dX = unpack(rows, "Дата и время");\r\n' +
+          'layout.yaxis.range[0] = ' + arg.range[0] + ';\r\n' +
+          'layout.yaxis.range[1] = ' + arg.range[1] + ';\r\n' +
+          'layout.xaxis["range"] = [dX[0], dX[dX.length - 1]];\r\n' +
+          'layout.xaxis.rangeslider["range"] = [dX[0], dX[dX.length - 1]];\r\n' +
+          'Plotly.newPlot("chart_001_body", [{ name: "' + arg.user + '", type: "scatter", mode: "lines", x: dX, y: unpack(rows, "' + arg.user + '") }], layout, { displayModeBar: false });})\r\n' +
+          'window["application"] =\r\n' +
+          '{\r\n' +
+          'run: function () {\r\n' +
+          'console.log("Приложение запущено");\r\n' +
+          'console.log(performance.now());\r\n' +
+          '}\r\n' +
+          '}\r\n' +
+          '</script>\r\n' +
+          '</head>\r\n' +
+          '<body onload="try { application.run(); } catch( error ) { alert( error.description ); }">\r\n' +
+          '<div id="chart_001" class="block chart"><span class="header">[' + arg.id + '] ' + arg.user + '</span><div id="chart_001_body" class="body"></div></div>\r\n' +
+          '</body>\r\n'
+        );
+        response.end('</html>');
+        return;
+      }
+    });
+    response.writeHead(404, { 'Content-Type': 'text/html' }); // Отвечаем заголовком с кодом 404
+    response.end('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>[' + url.searchParams.get('id') + '] not found</body></html>'); // И телом пустого документа
   }
   else { // Запрощен неизвестный ресурс
     response.writeHead(404, { 'Content-Type': 'text/html' }); // Отвечаем заголовком с кодом 404

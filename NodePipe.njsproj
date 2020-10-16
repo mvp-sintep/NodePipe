@@ -30,7 +30,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="plotly-latest.min.js" />
-    <Content Include="script.js" />
     <Content Include="server.js" />
     <Content Include="package.json" />
     <Content Include="README.md" />
